@@ -2063,6 +2063,9 @@ regenmaschine==2021.10.0
 # homeassistant.components.renault
 renault-api==0.1.4
 
+# homeassistant.components.blovee
+requests==2.26.0
+
 # homeassistant.components.python_script
 restrictedpython==5.2
 

@@ -117,6 +117,7 @@ homeassistant/components/blebox/* @bbx-a @bbx-jp
 tests/components/blebox/* @bbx-a @bbx-jp
 homeassistant/components/blink/* @fronzbot
 tests/components/blink/* @fronzbot
+homeassistant/components/blovee/* @kunaalkumar
 homeassistant/components/blueprint/* @home-assistant/core
 tests/components/blueprint/* @home-assistant/core
 homeassistant/components/bluesound/* @thrawnarn
