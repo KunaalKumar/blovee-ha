@@ -2,15 +2,17 @@
 import asyncio
 import logging
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import PlatformNotReady
 
 from .blovee import Blovee
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["light"]
 
@@ -48,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN]["hub"] = hub
 
     # Verify that passed in configuration works
-    hub.get_devices()
+    await hub.get_devices()
 
     for component in PLATFORMS:
         hass.async_create_task(
@@ -58,38 +60,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-# async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-#     """Unload a config entry."""
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Unload a config entry."""
 
-#     unload_ok = all(
-#         await asyncio.gather(
-#             *[
-#                 _unload_component_entry(hass, entry, component)
-#                 for component in PLATFORMS
-#             ]
-#         )
-#     )
+    unload_ok = all(
+        await asyncio.gather(
+            *[
+                _unload_component_entry(hass, entry, component)
+                for component in PLATFORMS
+            ]
+        )
+    )
 
-#     if unload_ok:
-#         hub = hass.data[DOMAIN].pop("hub")
+    if unload_ok:
+        hass.data[DOMAIN].pop("hub")
 
-#     return unload_ok
+    return unload_ok
 
 
-# def _unload_component_entry(
-#     hass: HomeAssistant, entry: ConfigEntry, component: str
-# ) -> bool:
-#     """Unload an entry for a specific component."""
-#     success = False
-#     try:
-#         success = hass.config_entries.async_forward_entry_unload(entry, component)
-#     except ValueError:
-#         # probably ValueError: Config entry was never loaded!
-#         return success
-#     except Exception as ex:
-#         _LOGGER.warning(
-#             "Continuing on exception when unloading %s component's entry: %s",
-#             component,
-#             ex,
-#         )
-#     return success
+async def _unload_component_entry(
+    hass: HomeAssistant, entry: ConfigEntry, component: str
+) -> bool:
+    """Unload an entry for a specific component."""
+    success = False
+    try:
+        success = await hass.config_entries.async_forward_entry_unload(entry, component)
+    except ValueError:
+        # probably ValueError: Config entry was never loaded!
+        return success
+    except Exception as ex:
+        _LOGGER.warning(
+            "Continuing on exception when unloading %s component's entry: %s",
+            component,
+            ex,
+        )
+    return success

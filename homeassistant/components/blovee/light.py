@@ -1,16 +1,20 @@
 from datetime import timedelta
+from enum import unique
 import logging
+from typing import Union
 
 from homeassistant.components.light import LightEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_DELAY
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .blovee import Blovee, BloveeDevice
+from .blovee import Blovee
 from .const import CONF_USE_ASSUMED_STATE, DOMAIN
+from .dtos import BloveeDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,7 +86,7 @@ class BloveeDataUpdateCoordinator(DataUpdateCoordinator):
 
         device_states = await hub.get_states()
         for device in device_states:
-            if device.error:
+            if device.err:
                 self.logger.warning(
                     "update failed for %s: %s", device.device, device.error
                 )
@@ -116,10 +120,50 @@ class BloveeLightEntity(LightEntity):
         """Lights internal state."""
         return self._device
 
-    async def async_trun_on(self, **kwargs):
+    @property
+    def unique_id(self):
+        return f"blovee_{self._device.mac}"
+
+    @property
+    def name(self):
+        return self._device.name
+
+    @property
+    def device_id(self):
+        return self._device.mac
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.device_id)},
+            name=self._device.name,
+            manufacturer="Blovee",
+            model=self._device.model,
+            via_device=(DOMAIN, "Blovee API"),
+        )
+
+    @property
+    def assumed_state(self):
+        """
+        Return true if the state is assumed.
+        This can be disabled in options.
+        """
+        return True
+
+    @property
+    def is_on(self):
+        return self._device.is_on
+
+    async def async_turn_on(self, **kwargs):
         """Turn on lamp."""
         _LOGGER.debug(
             "async_turn_on for Blovee lamp %s, kwargs: %s", self._device, kwargs
         )
-        err = None
-        self._hub.turn_on(self._device)
+        await self._hub.toggle_power(self._device, True)
+
+    async def async_turn_off(self, **kwargs):
+        """Turn on lamp."""
+        _LOGGER.debug(
+            "async_turn_off for Blovee lamp %s, kwargs: %s", self._device, kwargs
+        )
+        await self._hub.toggle_power(self._device, False)

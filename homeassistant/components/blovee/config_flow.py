@@ -1,16 +1,24 @@
 import logging
 
+import voluptuous as vol
+
 from homeassistant import config_entries, exceptions
-from homeassistant.const import CONF_API_KEY
+from homeassistant.const import CONF_API_KEY, CONF_DELAY
 from homeassistant.core import HomeAssistant, callback
+import homeassistant.helpers.config_validation as cv
 
 from .blovee import Blovee
-from .const import DOMAIN
+from .const import (
+    CONF_DISABLE_ATTRIBUTE_UPDATES,
+    CONF_OFFLINE_IS_OFF,
+    CONF_USE_ASSUMED_STATE,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def validate_api_key(hass: HomeAssistant, user_input):
+async def validate_api_key(user_input):
     api_key = user_input[CONF_API_KEY]
     hub = Blovee(api_key)
     _, error = hub.get_devices()
@@ -21,13 +29,13 @@ def validate_api_key(hass: HomeAssistant, user_input):
 @config_entries.HANDLERS.register(DOMAIN)
 class BloveeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     async def async_step_user(self, user_input=None):
+        """Handle the initial step."""
         errors = {}
         if user_input is not None:
             try:
-                await validate_api_key(self.hass, user_input)
+                await validate_api_key(user_input)
             except CannotConnect as e:
                 _LOGGER.exception("Cannot connect: %s", e)
                 errors[CONF_API_KEY] = "cannot connect"
@@ -38,7 +46,16 @@ class BloveeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 return self.async_create_entry(title=DOMAIN, data=user_input)
 
-            return self.async_show_form(step_id="user", errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_API_KEY): cv.string,
+                    vol.Optional(CONF_DELAY, default=10): cv.positive_int,
+                }
+            ),
+            errors=errors,
+        )
 
     @staticmethod
     @callback
@@ -54,10 +71,6 @@ class BloveeOptionsFlowHandler(config_entries.OptionsFlow):
         self.config_entry = config_entry
         self.options = dict(config_entry.options)
 
-    async def async_step_init(self, user_input=None):
-        """Manage the options."""
-        return await self.async_step_user()
-
     async def async_step_user(self, user_input=None):
         """Manage the options."""
         # get the current value for API key for comparison and default value
@@ -71,7 +84,7 @@ class BloveeOptionsFlowHandler(config_entries.OptionsFlow):
             try:
                 api_key = user_input[CONF_API_KEY]
                 if old_api_key != api_key:
-                    user_input = validate_api_key(self.hass, user_input)
+                    await validate_api_key(user_input)
 
             except CannotConnect as e:
                 _LOGGER.exception("Cannot connect: %s", e)
@@ -87,8 +100,41 @@ class BloveeOptionsFlowHandler(config_entries.OptionsFlow):
                 # for later - extend with options you don't want in config but option flow
                 # return await self.async_step_options_2()
 
+        options_schema = vol.Schema(
+            {
+                # to config flow
+                vol.Required(
+                    CONF_API_KEY,
+                    default=old_api_key,
+                ): cv.string,
+                vol.Optional(
+                    CONF_DELAY,
+                    default=self.config_entry.options.get(
+                        CONF_DELAY, self.config_entry.data.get(CONF_DELAY, 10)
+                    ),
+                ): cv.positive_int,
+                # to options flow
+                vol.Required(
+                    CONF_USE_ASSUMED_STATE,
+                    default=self.config_entry.options.get(CONF_USE_ASSUMED_STATE, True),
+                ): cv.boolean,
+                vol.Required(
+                    CONF_OFFLINE_IS_OFF,
+                    default=self.config_entry.options.get(CONF_OFFLINE_IS_OFF, False),
+                ): cv.boolean,
+                # TODO: validator doesn't work, change to list?
+                vol.Optional(
+                    CONF_DISABLE_ATTRIBUTE_UPDATES,
+                    default=self.config_entry.options.get(
+                        CONF_DISABLE_ATTRIBUTE_UPDATES, ""
+                    ),
+                ): cv.string,
+            },
+        )
+
         return self.async_show_form(
             step_id="user",
+            data_schema=options_schema,
             errors=errors,
         )
 

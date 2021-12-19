@@ -632,6 +632,9 @@ eternalegypt==0.0.12
 # homeassistant.components.keyboard_remote
 # evdev==1.4.0
 
+# homeassistant.components.blovee
+events==0.4
+
 # homeassistant.components.evohome
 evohome-async==0.3.15
 
@@ -2406,6 +2409,9 @@ vilfo-api-client==0.3.2
 
 # homeassistant.components.volkszaehler
 volkszaehler==0.2.1
+
+# homeassistant.components.blovee
+voluptuous==0.12.2
 
 # homeassistant.components.volvooncall
 volvooncall==0.9.1
