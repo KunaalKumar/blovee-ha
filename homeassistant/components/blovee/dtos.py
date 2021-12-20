@@ -8,3 +8,4 @@ class BloveeDevice:
     mac: str
     err: str
     is_on: bool
+    brightness: int

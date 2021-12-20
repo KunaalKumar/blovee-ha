@@ -39,3 +39,15 @@ class GoveeAPI:
                 "cmd": {"name": "turn", "value": "on" if turn_on else "off"},
             },
         )
+
+    async def set_brightness(
+        self, device: BloveeDevice, brightness: int
+    ) -> ClientResponse:
+        return await self._session.put(
+            url=GOVEE_API_URL + "control/",
+            json={
+                "device": device.mac,
+                "model": device.model,
+                "cmd": {"name": "brightness", "value": brightness},
+            },
+        )

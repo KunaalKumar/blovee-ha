@@ -1,4 +1,5 @@
 import logging
+from math import floor
 from typing import Coroutine, Dict, List, Optional, Tuple
 
 from aiohttp.client_reqrep import ClientResponse
@@ -18,7 +19,6 @@ class Blovee:
         self._api = GoveeAPI(api_key=api_key)
         self._api_key = api_key
         self.devices: Dict[str, BloveeDevice] = {}
-        pass
 
     async def get_devices(
         self,
@@ -37,13 +37,14 @@ class Blovee:
                 self.devices[device_id] = BloveeDevice(
                     name=device["deviceName"],
                     model=device["model"],
-                    mac=device["device"],
+                    mac=device_id,
                     is_on=False,
                     err="",
+                    brightness=100,
                 )
                 self.events.new_device(self.devices[device_id])
         else:
-            error = response.text
+            error = await response.text()
 
         return list(self.devices.values()), error
 
@@ -54,6 +55,8 @@ class Blovee:
             for prop in json["data"]["properties"]:
                 if "powerState" in prop:
                     device.is_on = prop["powerState"] == "on"
+                if "brightness" in prop:
+                    device.brightness = prop["brightness"]
         else:
             device.err = response.text
 
@@ -66,10 +69,33 @@ class Blovee:
 
         return list(self.devices.values())
 
-    async def toggle_power(self, device: BloveeDevice, turn_on: bool):
+    async def toggle_power(self, device: BloveeDevice, turn_on: bool) -> BloveeDevice:
         response = await self._api.toggle_power(device, turn_on)
         if response.status == 200:
-            _LOGGER.debug("%s turned on", device.name)
+            _LOGGER.debug("%s turned %s", device.name, "on" if turn_on else "off")
+            device.is_on = turn_on == True
         else:
             device.err = await response.text()
-            _LOGGER.error("Error turning on %s: %s", device.name, response.text)
+            _LOGGER.error(
+                "Error turning %s %s: %s",
+                "on" if turn_on else "off",
+                device.name,
+                response.text,
+            )
+
+        return device
+
+    async def set_brightness(
+        self, device: BloveeDevice, brightness: int
+    ) -> BloveeDevice:
+        brightness = max(1, floor(brightness * 100 / 255))
+        response = await self._api.set_brightness(device, brightness)
+        if response.status == 200:
+            _LOGGER.debug("Set brightness for %s to %d", device.name, brightness)
+            device.brightness = brightness
+        else:
+            device.err = await response.text()
+            _LOGGER.error(
+                "Failed to set brightness for %s to %d", device.name, brightness
+            )
+        return device

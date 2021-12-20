@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 async def validate_api_key(user_input):
     api_key = user_input[CONF_API_KEY]
     hub = Blovee(api_key)
-    _, error = hub.get_devices()
+    _, error = await hub.get_devices()
     if error:
         raise CannotConnect(error)
 

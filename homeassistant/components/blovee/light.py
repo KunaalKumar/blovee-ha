@@ -3,7 +3,11 @@ from enum import unique
 import logging
 from typing import Union
 
-from homeassistant.components.light import LightEntity
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    SUPPORT_BRIGHTNESS,
+    LightEntity,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_DELAY
 from homeassistant.core import HomeAssistant
@@ -87,9 +91,7 @@ class BloveeDataUpdateCoordinator(DataUpdateCoordinator):
         device_states = await hub.get_states()
         for device in device_states:
             if device.err:
-                self.logger.warning(
-                    "update failed for %s: %s", device.device, device.error
-                )
+                self.logger.warning("update failed for %s: %s", device.name, device.err)
         return device_states
 
 
@@ -113,7 +115,19 @@ class BloveeLightEntity(LightEntity):
 
     async def async_added_to_hass(self):
         """Connect to dispatcher listening for entity data notifications."""
+        _LOGGER.info("Added new device!: %s (%s)", self._device.name, self._title)
         self._coordinator.async_add_listener(self.async_write_ha_state)
+
+    @property
+    def supported_features(self):
+        """Flag supported features."""
+        support_flags = 0
+        support_flags |= SUPPORT_BRIGHTNESS
+        # if self._device.support_color:
+        #     support_flags |= SUPPORT_COLOR
+        # if self._device.support_color_tem:
+        #     support_flags |= SUPPORT_COLOR_TEMP
+        return support_flags
 
     @property
     def _state(self):
@@ -154,16 +168,24 @@ class BloveeLightEntity(LightEntity):
     def is_on(self):
         return self._device.is_on
 
-    async def async_turn_on(self, **kwargs):
+    @property
+    def brightness(self) -> int:
+        _LOGGER.info("BRIGTHENSS: %d", self._device.brightness)
+        return self._device.brightness
+
+    async def async_turn_on(self, **kwargs) -> None:
         """Turn on lamp."""
         _LOGGER.debug(
             "async_turn_on for Blovee lamp %s, kwargs: %s", self._device, kwargs
         )
-        await self._hub.toggle_power(self._device, True)
+        self._device = await self._hub.toggle_power(self._device, True)
+        if ATTR_BRIGHTNESS in kwargs:
+            brightness = kwargs.pop(ATTR_BRIGHTNESS)
+            self._device = await self._hub.set_brightness(self._device, brightness)
 
     async def async_turn_off(self, **kwargs):
         """Turn on lamp."""
         _LOGGER.debug(
             "async_turn_off for Blovee lamp %s, kwargs: %s", self._device, kwargs
         )
-        await self._hub.toggle_power(self._device, False)
+        self._device = await self._hub.toggle_power(self._device, False)
