@@ -88,7 +88,7 @@ class Blovee:
     async def set_brightness(
         self, device: BloveeDevice, brightness: int
     ) -> BloveeDevice:
-        brightness = max(1, floor(brightness * 100 / 255))
+        brightness = floor(brightness * 100 / 255)
         response = await self._api.set_brightness(device, brightness)
         if response.status == 200:
             _LOGGER.debug("Set brightness for %s to %d", device.name, brightness)

@@ -1,6 +1,7 @@
 from datetime import timedelta
 from enum import unique
 import logging
+from math import floor
 from typing import Union
 
 from homeassistant.components.light import (
@@ -32,7 +33,7 @@ async def async_setup_entry(
     hub: Blovee = hass.data[DOMAIN]["hub"]
 
     update_interval = timedelta(
-        seconds=options.get(CONF_DELAY, config.get(CONF_DELAY, 10))
+        seconds=options.get(CONF_DELAY, config.get(CONF_DELAY, 30))
     )
 
     coordinator = BloveeDataUpdateCoordinator(
@@ -170,8 +171,8 @@ class BloveeLightEntity(LightEntity):
 
     @property
     def brightness(self) -> int:
-        _LOGGER.info("BRIGTHENSS: %d", self._device.brightness)
-        return self._device.brightness
+        _LOGGER.info("Brightness: %d", floor(self._device.brightness * 255 / 100))
+        return floor(self._device.brightness * 255 / 100)
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn on lamp."""
